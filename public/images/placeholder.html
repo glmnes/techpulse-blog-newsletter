@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Placeholder Image Generator</title>
+</head>
+<body>
+    <h1>GodAGI Placeholder Images</h1>
+    <p>Save these canvases as images:</p>
+    
+    <h2>Compute Scaling</h2>
+    <canvas id="compute-scaling" width="1200" height="630"></canvas>
+    
+    <h2>Stanford BCI</h2>
+    <canvas id="stanford-bci" width="1200" height="630"></canvas>
+    
+    <h2>OpenAI Research</h2>
+    <canvas id="openai-research" width="1200" height="630"></canvas>
+    
+    <h2>BCI Comparison</h2>
+    <canvas id="bci-comparison" width="1200" height="630"></canvas>
+    
+    <h2>CRISPR Prime</h2>
+    <canvas id="crispr-prime" width="1200" height="630"></canvas>
+    
+    <script>
+        function createPlaceholder(canvasId, title, color) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, 1200, 630);
+            gradient.addColorStop(0, '#0a0a0a');
+            gradient.addColorStop(1, color);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 1200, 630);
+            
+            // Text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(title, 600, 315);
+            
+            // Border
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4;
+            ctx.strokeRect(2, 2, 1196, 626);
+        }
+        
+        createPlaceholder('compute-scaling', 'COMPUTE SCALING', '#00ff88');
+        createPlaceholder('stanford-bci', 'STANFORD BCI', '#00d4ff');
+        createPlaceholder('openai-research', 'OPENAI RESEARCH', '#ff00ff');
+        createPlaceholder('bci-comparison', 'BCI COMPARISON', '#00d4ff');
+        createPlaceholder('crispr-prime', 'CRISPR PRIME', '#ff00ff');
+    </script>
+</body>
+</html>

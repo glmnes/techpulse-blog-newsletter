@@ -1,0 +1,195 @@
+---
+title: "Getting Started with Next.js 14: Complete Guide"
+author: "John Smith"
+date: "2024-01-15"
+excerpt: "Learn how to build modern web applications with Next.js 14, including new features and best practices."
+coverImage: "/images/nextjs-guide.jpg"
+categories:
+  - "Web Development"
+  - "Tutorial"
+tags:
+  - "Next.js"
+  - "React"
+  - "TypeScript"
+  - "Web Framework"
+published: true
+featured: true
+premium: false
+readingTime: "12 min read"
+---
+
+# Getting Started with Next.js 14: Complete Guide
+
+Next.js 14 brings exciting new features for building fast, modern web applications. This guide will walk you through everything you need to know.
+
+## What's New in Next.js 14
+
+The latest version introduces several game-changing features:
+
+### 1. Turbopack (Stable)
+The new Rust-based bundler is now stable, offering:
+- **10x faster** HMR (Hot Module Replacement)
+- **94% faster** initial compile times
+- Improved memory usage
+
+### 2. Server Actions
+Simplified data mutations without API routes:
+```typescript
+async function createPost(formData: FormData) {
+  'use server'
+  // Direct database operations
+  await db.post.create({
+    data: { title: formData.get('title') }
+  })
+}
+```
+
+### 3. Partial Prerendering
+Combine static and dynamic content seamlessly for optimal performance.
+
+## Setting Up Your First Project
+
+Let's create a new Next.js application:
+
+```bash
+npx create-next-app@latest my-app --typescript --tailwind --app
+cd my-app
+npm run dev
+```
+
+## Project Structure
+
+Understanding the App Router structure:
+
+```
+my-app/
+├── app/
+│   ├── layout.tsx    # Root layout
+│   ├── page.tsx      # Home page
+│   └── globals.css   # Global styles
+├── components/       # Reusable components
+├── lib/             # Utility functions
+└── public/          # Static assets
+```
+
+## Key Concepts
+
+### Server Components by Default
+All components are Server Components unless you add `'use client'`:
+
+```tsx
+// This runs on the server
+export default async function Page() {
+  const data = await fetchData()
+  return <div>{data}</div>
+}
+```
+
+### Client Components
+For interactivity, use the client directive:
+
+```tsx
+'use client'
+import { useState } from 'react'
+
+export default function Counter() {
+  const [count, setCount] = useState(0)
+  return <button onClick={() => setCount(count + 1)}>{count}</button>
+}
+```
+
+## Data Fetching Patterns
+
+### Static Data
+```tsx
+async function getData() {
+  const res = await fetch('https://api.example.com/data')
+  return res.json()
+}
+
+export default async function Page() {
+  const data = await getData()
+  return <main>{/* Use data */}</main>
+}
+```
+
+### Dynamic Data
+```tsx
+async function getData() {
+  const res = await fetch('https://api.example.com/data', {
+    cache: 'no-store' // Always fetch fresh data
+  })
+  return res.json()
+}
+```
+
+## Performance Optimization
+
+### Image Optimization
+```tsx
+import Image from 'next/image'
+
+<Image
+  src="/hero.jpg"
+  alt="Hero"
+  width={1200}
+  height={600}
+  priority
+/>
+```
+
+### Font Optimization
+```tsx
+import { Inter } from 'next/font/google'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export default function Layout({ children }) {
+  return (
+    <html className={inter.className}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+## Best Practices
+
+1. **Use Server Components** for data fetching and static content
+2. **Minimize Client Components** to interactive parts only
+3. **Implement proper error boundaries** for resilience
+4. **Optimize images and fonts** for performance
+5. **Use TypeScript** for type safety
+
+## Deployment
+
+Deploy to Vercel for the best experience:
+
+```bash
+npm run build
+vercel deploy
+```
+
+Or self-host with Docker:
+
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY . .
+RUN npm ci --only=production
+RUN npm run build
+CMD ["npm", "start"]
+```
+
+## Conclusion
+
+Next.js 14 provides everything you need to build production-ready applications. Start small, experiment with the features, and scale as needed.
+
+## Next Steps
+
+- Explore the [official documentation](https://nextjs.org/docs)
+- Build a real project to practice
+- Join the Next.js community on Discord
+- Follow best practices and patterns
+
+Happy coding!

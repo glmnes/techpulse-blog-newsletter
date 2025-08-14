@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  role          Role           @default(READER)
+  image         String?
+  bio           String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  bookmarks     Bookmark[]
+  posts         Post[]
+  reactions     Reaction[]
+  subscriptions Subscription[]
+}
+
+model Post {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  title       String
+  excerpt     String
+  content     String
+  coverImage  String?
+  published   Boolean    @default(false)
+  featured    Boolean    @default(false)
+  premium     Boolean    @default(false)
+  authorId    String
+  categoryId  String
+  readingTime String?
+  viewCount   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  publishedAt DateTime?
+  bookmarks   Bookmark[]
+  author      User       @relation(fields: [authorId], references: [id])
+  category    Category   @relation(fields: [categoryId], references: [id])
+  reactions   Reaction[]
+  tags        Tag[]      @relation("PostToTag")
+
+  @@index([slug])
+  @@index([published, publishedAt])
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  posts       Post[]
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  posts     Post[]   @relation("PostToTag")
+}
+
+model Subscription {
+  id             String             @id @default(cuid())
+  email          String             @unique
+  status         SubscriptionStatus @default(PENDING)
+  token          String             @unique @default(cuid())
+  userId         String?
+  subscribedAt   DateTime           @default(now())
+  confirmedAt    DateTime?
+  unsubscribedAt DateTime?
+  user           User?              @relation(fields: [userId], references: [id])
+
+  @@index([email])
+  @@index([status])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, postId])
+}
+
+model Reaction {
+  id        String       @id @default(cuid())
+  type      ReactionType
+  userId    String
+  postId    String
+  createdAt DateTime     @default(now())
+  post      Post         @relation(fields: [postId], references: [id])
+  user      User         @relation(fields: [userId], references: [id])
+
+  @@unique([userId, postId, type])
+}
+
+enum Role {
+  READER
+  WRITER
+  ADMIN
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  UNSUBSCRIBED
+}
+
+enum ReactionType {
+  LIKE
+  INSIGHTFUL
+  MINDBLOWN
+}

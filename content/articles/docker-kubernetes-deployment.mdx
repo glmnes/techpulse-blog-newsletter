@@ -1,0 +1,517 @@
+---
+title: "Docker to Kubernetes: Complete Deployment Guide"
+author: "Emma Johnson"
+date: "2024-01-20"
+excerpt: "Learn how to containerize applications with Docker and deploy them at scale using Kubernetes."
+coverImage: "/images/docker-k8s.jpg"
+categories:
+  - "Cloud Computing"
+  - "DevOps"
+tags:
+  - "Docker"
+  - "Kubernetes"
+  - "DevOps"
+  - "Containers"
+published: true
+featured: false
+premium: false
+readingTime: "15 min read"
+---
+
+# Docker to Kubernetes: Complete Deployment Guide
+
+Docker and Kubernetes are essential tools for modern application deployment. Let's master both.
+
+## Part 1: Docker Fundamentals
+
+### Why Containers?
+
+Containers solve the "works on my machine" problem:
+- **Consistency** across environments
+- **Portability** between systems
+- **Resource efficiency** vs VMs
+- **Microservices** architecture support
+
+### Your First Dockerfile
+
+Create a Node.js application container:
+
+```dockerfile
+# Use official Node runtime
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Start application
+CMD ["node", "server.js"]
+```
+
+### Building and Running
+
+```bash
+# Build image
+docker build -t my-app:v1 .
+
+# Run container
+docker run -d -p 3000:3000 --name my-app my-app:v1
+
+# Check logs
+docker logs my-app
+
+# Enter container
+docker exec -it my-app sh
+```
+
+### Multi-Stage Builds
+
+Optimize image size with multi-stage builds:
+
+```dockerfile
+# Build stage
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Production stage
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY --from=builder /app/dist ./dist
+EXPOSE 3000
+CMD ["node", "dist/index.js"]
+```
+
+## Docker Compose
+
+Manage multi-container applications:
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://user:pass@db:5432/mydb
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=mydb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
+```
+
+Run with:
+```bash
+docker-compose up -d
+docker-compose logs -f
+docker-compose down
+```
+
+## Part 2: Kubernetes Essentials
+
+### Core Concepts
+
+| Component | Purpose |
+|-----------|---------|
+| **Pod** | Smallest deployable unit |
+| **Service** | Network endpoint for pods |
+| **Deployment** | Manages replica sets |
+| **Ingress** | External access to services |
+| **ConfigMap** | Configuration data |
+| **Secret** | Sensitive data |
+
+### Your First Deployment
+
+```yaml
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+  labels:
+    app: web
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: web
+        image: my-app:v1
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+```
+
+### Service Configuration
+
+```yaml
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+spec:
+  selector:
+    app: web
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: LoadBalancer
+```
+
+### Ingress for HTTP Routing
+
+```yaml
+# ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web-service
+            port:
+              number: 80
+```
+
+## Configuration Management
+
+### ConfigMaps
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  database.conf: |
+    host=db.example.com
+    port=5432
+    name=myapp
+  app.properties: |
+    debug=false
+    cache.ttl=3600
+```
+
+### Secrets
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+type: Opaque
+data:
+  db-password: cGFzc3dvcmQxMjM=  # base64 encoded
+  api-key: YWJjZGVmZ2hpams=
+```
+
+Use in deployment:
+```yaml
+spec:
+  containers:
+  - name: web
+    envFrom:
+    - configMapRef:
+        name: app-config
+    - secretRef:
+        name: app-secrets
+```
+
+## Scaling Strategies
+
+### Horizontal Pod Autoscaler
+
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web-app
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+```
+
+## Health Checks
+
+Ensure reliability with probes:
+
+```yaml
+spec:
+  containers:
+  - name: web
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 3000
+      initialDelaySeconds: 30
+      periodSeconds: 10
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: 3000
+      initialDelaySeconds: 5
+      periodSeconds: 5
+```
+
+## Persistent Storage
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+# In deployment
+spec:
+  containers:
+  - name: web
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: data-pvc
+```
+
+## Monitoring and Logging
+
+### Prometheus Metrics
+
+```yaml
+# Service monitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: web-metrics
+spec:
+  selector:
+    matchLabels:
+      app: web
+  endpoints:
+  - port: metrics
+    interval: 30s
+```
+
+### Logging with Fluentd
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+data:
+  fluent.conf: |
+    <source>
+      @type tail
+      path /var/log/containers/*.log
+      pos_file /var/log/fluentd-containers.log.pos
+      tag kubernetes.*
+      <parse>
+        @type json
+      </parse>
+    </source>
+    
+    <match kubernetes.**>
+      @type elasticsearch
+      host elasticsearch
+      port 9200
+      logstash_format true
+    </match>
+```
+
+## CI/CD Integration
+
+### GitOps with ArgoCD
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: web-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/user/app
+    targetRevision: HEAD
+    path: k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+```
+
+## Security Best Practices
+
+### Network Policies
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web-netpol
+spec:
+  podSelector:
+    matchLabels:
+      app: web
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend
+    ports:
+    - protocol: TCP
+      port: 3000
+```
+
+### Pod Security
+
+```yaml
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 2000
+  containers:
+  - name: web
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+        - ALL
+```
+
+## Troubleshooting
+
+Common kubectl commands:
+
+```bash
+# Get pod logs
+kubectl logs -f pod-name
+
+# Describe pod
+kubectl describe pod pod-name
+
+# Execute command in pod
+kubectl exec -it pod-name -- /bin/sh
+
+# Port forward for debugging
+kubectl port-forward pod-name 8080:3000
+
+# Check events
+kubectl get events --sort-by='.lastTimestamp'
+
+# Resource usage
+kubectl top nodes
+kubectl top pods
+```
+
+## Production Checklist
+
+✅ Resource limits defined
+✅ Health checks configured
+✅ Secrets properly managed
+✅ Network policies in place
+✅ Monitoring and logging setup
+✅ Backup strategy implemented
+✅ Disaster recovery plan
+✅ Security scanning in CI/CD
+
+## Conclusion
+
+Docker and Kubernetes together provide a powerful platform for modern application deployment. Start with Docker for local development, then scale with Kubernetes for production.
+
+Keep learning, keep deploying!

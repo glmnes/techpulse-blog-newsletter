@@ -1,0 +1,444 @@
+---
+title: "TypeScript Best Practices for 2024"
+author: "Emma Johnson"
+date: "2024-01-25"
+excerpt: "Modern TypeScript patterns and practices for building maintainable applications."
+coverImage: "/images/typescript.jpg"
+categories:
+  - "Web Development"
+  - "Programming"
+tags:
+  - "TypeScript"
+  - "JavaScript"
+  - "Best Practices"
+  - "Web Development"
+published: true
+featured: false
+premium: true
+readingTime: "11 min read"
+---
+
+# TypeScript Best Practices for 2024
+
+TypeScript has become the standard for large-scale JavaScript applications. Let's explore modern patterns and practices.
+
+## Why TypeScript in 2024?
+
+The benefits are clearer than ever:
+- **Type Safety**: Catch errors at compile time
+- **Better IDE Support**: Intelligent autocomplete and refactoring
+- **Self-Documenting Code**: Types serve as inline documentation
+- **Easier Refactoring**: Change with confidence
+
+## Configuration Best Practices
+
+### Strict Mode is Your Friend
+
+Start with the strictest settings:
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true
+  }
+}
+```
+
+## Type System Mastery
+
+### Prefer Interfaces for Objects
+
+```typescript
+// ✅ Good - Use interface for object shapes
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: Date;
+}
+
+// Use type for unions, intersections, and complex types
+type Status = 'pending' | 'active' | 'suspended';
+type UserWithStatus = User & { status: Status };
+```
+
+### Const Assertions for Literals
+
+```typescript
+// Without const assertion
+const config = {
+  api: 'https://api.example.com',
+  timeout: 5000
+}; // Type: { api: string; timeout: number }
+
+// With const assertion
+const config = {
+  api: 'https://api.example.com',
+  timeout: 5000
+} as const; // Type: { readonly api: "https://api.example.com"; readonly timeout: 5000 }
+```
+
+### Template Literal Types
+
+```typescript
+type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+type APIEndpoint = '/users' | '/posts' | '/comments';
+
+// Generate all possible route combinations
+type APIRoute = `${HTTPMethod} ${APIEndpoint}`;
+// Type: "GET /users" | "GET /posts" | ... | "DELETE /comments"
+
+function request(route: APIRoute) {
+  // Type-safe API requests
+}
+
+request('GET /users'); // ✅ Valid
+request('PATCH /users'); // ❌ Error
+```
+
+## Advanced Type Patterns
+
+### Discriminated Unions
+
+```typescript
+type Result<T, E = Error> = 
+  | { success: true; data: T }
+  | { success: false; error: E };
+
+async function fetchUser(id: string): Promise<Result<User>> {
+  try {
+    const user = await api.getUser(id);
+    return { success: true, data: user };
+  } catch (error) {
+    return { success: false, error: error as Error };
+  }
+}
+
+// Usage with type narrowing
+const result = await fetchUser('123');
+if (result.success) {
+  console.log(result.data); // TypeScript knows this is User
+} else {
+  console.error(result.error); // TypeScript knows this is Error
+}
+```
+
+### Builder Pattern with Fluent Interface
+
+```typescript
+class QueryBuilder<T = {}> {
+  private query: T;
+
+  constructor(initial: T = {} as T) {
+    this.query = initial;
+  }
+
+  where<K extends string, V>(
+    key: K, 
+    value: V
+  ): QueryBuilder<T & Record<K, V>> {
+    return new QueryBuilder({
+      ...this.query,
+      [key]: value
+    } as T & Record<K, V>);
+  }
+
+  build(): T {
+    return this.query;
+  }
+}
+
+// Type-safe query building
+const query = new QueryBuilder()
+  .where('name', 'John')
+  .where('age', 30)
+  .where('active', true)
+  .build();
+// Type: { name: string; age: number; active: boolean }
+```
+
+### Type Guards
+
+```typescript
+// User-defined type guard
+function isUser(value: unknown): value is User {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    'email' in value
+  );
+}
+
+// Using type guard
+function processData(data: unknown) {
+  if (isUser(data)) {
+    // TypeScript knows data is User here
+    console.log(data.email);
+  }
+}
+
+// Assert functions (TypeScript 3.7+)
+function assertIsUser(value: unknown): asserts value is User {
+  if (!isUser(value)) {
+    throw new Error('Value is not a User');
+  }
+}
+```
+
+## Generic Constraints
+
+```typescript
+// Constrain generic to have specific properties
+function getProperty<T, K extends keyof T>(obj: T, key: K): T[K] {
+  return obj[key];
+}
+
+const user = { name: 'John', age: 30 };
+const name = getProperty(user, 'name'); // string
+const age = getProperty(user, 'age'); // number
+// getProperty(user, 'invalid'); // ❌ Error
+
+// Conditional types with generics
+type Flatten<T> = T extends Array<infer U> ? U : T;
+
+type Str = Flatten<string>; // string
+type Num = Flatten<number[]>; // number
+```
+
+## Utility Types Mastery
+
+### Custom Utility Types
+
+```typescript
+// Deep Partial
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+// Deep Readonly
+type DeepReadonly<T> = {
+  readonly [P in keyof T]: T[P] extends object ? DeepReadonly<T[P]> : T[P];
+};
+
+// Mutable (remove readonly)
+type Mutable<T> = {
+  -readonly [P in keyof T]: T[P];
+};
+
+// RequireAtLeastOne
+type RequireAtLeastOne<T, Keys extends keyof T = keyof T> =
+  Pick<T, Exclude<keyof T, Keys>> &
+  {
+    [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>
+  }[Keys];
+
+// Usage
+type ContactInfo = RequireAtLeastOne<{
+  email?: string;
+  phone?: string;
+  address?: string;
+}, 'email' | 'phone'>;
+// Must have either email or phone (or both)
+```
+
+## Error Handling Patterns
+
+```typescript
+// Custom error classes with type discrimination
+abstract class AppError extends Error {
+  abstract readonly type: string;
+  abstract readonly statusCode: number;
+}
+
+class ValidationError extends AppError {
+  readonly type = 'VALIDATION_ERROR';
+  readonly statusCode = 400;
+  
+  constructor(public readonly fields: Record<string, string>) {
+    super('Validation failed');
+  }
+}
+
+class NotFoundError extends AppError {
+  readonly type = 'NOT_FOUND';
+  readonly statusCode = 404;
+  
+  constructor(resource: string) {
+    super(`${resource} not found`);
+  }
+}
+
+// Type-safe error handling
+function handleError(error: AppError) {
+  switch (error.type) {
+    case 'VALIDATION_ERROR':
+      // TypeScript knows error is ValidationError
+      console.log(error.fields);
+      break;
+    case 'NOT_FOUND':
+      // TypeScript knows error is NotFoundError
+      console.log(error.statusCode);
+      break;
+  }
+}
+```
+
+## Async Patterns
+
+```typescript
+// Type-safe async wrapper
+type AsyncData<T> = 
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: T }
+  | { status: 'error'; error: Error };
+
+function useAsyncData<T>(
+  asyncFn: () => Promise<T>
+): AsyncData<T> {
+  const [state, setState] = useState<AsyncData<T>>({ status: 'idle' });
+
+  useEffect(() => {
+    setState({ status: 'loading' });
+    
+    asyncFn()
+      .then(data => setState({ status: 'success', data }))
+      .catch(error => setState({ status: 'error', error }));
+  }, []);
+
+  return state;
+}
+```
+
+## Module Patterns
+
+```typescript
+// Namespace for organizing related types
+namespace API {
+  export interface Request {
+    url: string;
+    method: HTTPMethod;
+    headers?: Record<string, string>;
+  }
+
+  export interface Response<T = unknown> {
+    data: T;
+    status: number;
+  }
+
+  export type Handler<T = unknown> = (
+    req: Request
+  ) => Promise<Response<T>>;
+}
+
+// Module augmentation
+declare module 'express' {
+  interface Request {
+    user?: User;
+    session?: Session;
+  }
+}
+```
+
+## Testing with TypeScript
+
+```typescript
+// Type-safe mocks
+function createMock<T>(partial: Partial<T> = {}): T {
+  return new Proxy(partial as T, {
+    get(target, prop) {
+      if (prop in target) {
+        return target[prop as keyof T];
+      }
+      return jest.fn();
+    }
+  });
+}
+
+// Usage in tests
+describe('UserService', () => {
+  it('should fetch user', async () => {
+    const mockApi = createMock<API>({
+      getUser: jest.fn().mockResolvedValue({ id: '1', name: 'John' })
+    });
+
+    const service = new UserService(mockApi);
+    const user = await service.fetchUser('1');
+    
+    expect(user.name).toBe('John');
+  });
+});
+```
+
+## Performance Considerations
+
+### Use `const enum` for Better Performance
+
+```typescript
+// Regular enum (generates JavaScript object)
+enum Direction {
+  Up,
+  Down,
+  Left,
+  Right
+}
+
+// Const enum (inlined at compile time)
+const enum BetterDirection {
+  Up,
+  Down,
+  Left,
+  Right
+}
+
+// Usage is inlined: console.log(0) instead of console.log(BetterDirection.Up)
+console.log(BetterDirection.Up);
+```
+
+## Migration Strategy
+
+### Gradual TypeScript Adoption
+
+1. **Start with `allowJs: true`**
+2. **Add types to critical paths first**
+3. **Use JSDoc for gradual typing**
+4. **Enable strict mode incrementally**
+
+```javascript
+// Using JSDoc in JavaScript files
+/**
+ * @param {string} name
+ * @param {number} age
+ * @returns {User}
+ */
+function createUser(name, age) {
+  return { id: generateId(), name, age };
+}
+```
+
+## Common Pitfalls to Avoid
+
+1. **Overusing `any`**: Use `unknown` instead
+2. **Ignoring compiler errors**: Fix them, don't suppress
+3. **Not using strict mode**: Enable it from the start
+4. **Type assertions abuse**: Let TypeScript infer when possible
+5. **Ignoring `null` and `undefined`**: Use strict null checks
+
+## Conclusion
+
+TypeScript in 2024 is more powerful than ever. Master these patterns to write safer, more maintainable code. The investment in learning TypeScript pays dividends in reduced bugs and improved developer experience.
+
+Keep typing, keep improving!
